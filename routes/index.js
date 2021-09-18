@@ -54,20 +54,20 @@ passport.use(new BasicStrategy(
 ));
 
 
-router.get("/create_new", passport.authenticate('basic', {
+router.post("/create_new", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
 
     try {
 
-        const {error} = validator.validateBalanceQuery(req.body);
+        const {error} = validator.createNew(req.body);
         if (error) {
             return res.json({
                 status: 2,
                 reason: error.message
             })
         }
-        const {subscriberNumber, channel} = req.body;
+        const {channel} = req.body;
         if (channel.toLowerCase() !== req.user.channel) {
             return res.json({
                 status: 2,

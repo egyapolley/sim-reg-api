@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +22,9 @@
     "joi": "^17.4.2",
     "moment": "^2.29.1",
     "mongoose": "^6.0.5",
+    "mysql2": "^2.3.0",
     "passport": "^0.4.1",
-    "passport-http": "^0.3.0"
+    "passport-http": "^0.3.0",
+    "sequelize": "^6.6.5"
   }
 }

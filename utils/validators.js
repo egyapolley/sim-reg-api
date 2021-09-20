@@ -5,22 +5,26 @@ module.exports = {
     createNew: (body) => {
 
         const schema = Joi.object({
-            MSISDN: Joi.string()
+            surflineNumber: Joi.string()
                 .length(12)
-                .alphanum()
                 .regex(/233[0-9]{9}/)
                 .required()
                 .messages({"string.pattern.base": "MSISDN format is invalid.Must start with 233"}),
+            serviceType:Joi.string()
+                .valid('Default','SME','AlwaysON Group')
+                .required(),
             channel: Joi.string()
-                .alphanum()
+                .min(3)
+                .max(50)
+                .lowercase()
+                .required(),
+            agentId: Joi.string()
                 .min(3)
                 .max(50)
                 .lowercase()
                 .required(),
             transaction_id: Joi.string()
-                .alphanum()
                 .min(3)
-                .max(50)
                 .required(),
             first_name: Joi.string()
                 .min(2)
@@ -45,12 +49,17 @@ module.exports = {
                 .trim()
                 .required(),
             residential_address: Joi.string()
+                .trim(),
+            region: Joi.string()
+                .trim()
+                .required(),
+            city: Joi.string()
                 .trim()
                 .required(),
             nationality: Joi.string()
                 .trim()
                 .required(),
-            National_ID_type: Joi.string()
+            national_Id_type: Joi.string()
                 .trim()
                 .required(),
             ghana_card_number: Joi.string()
@@ -58,21 +67,38 @@ module.exports = {
                 .required(),
             email: Joi.string()
                 .trim()
-                .email()
-                .required(),
-            phoneContact: Joi.string()
-                .trim()
-                .required(),
+                .email(),
+            phone_contact: Joi.string()
+                .length(12)
+                .regex(/233[0-9]{9}/)
+                .required()
+                .messages({"string.pattern.base": "MSISDN format is invalid.Must start with 233"}),
             digital_address: Joi.string()
                 .trim()
-                .required(),
-
         });
 
         return schema.validate(body)
 
 
     },
+    getServiceTypes:(body)=>{
+        const schema = Joi.object({
+            surflineNumber: Joi.string()
+                .length(12)
+                .regex(/233[0-9]{9}/)
+                .required()
+                .messages({"string.pattern.base": "MSISDN format is invalid.Must start with 233"}),
+            channel: Joi.string()
+                .min(3)
+                .max(50)
+                .lowercase()
+                .required(),
+        });
+
+        return schema.validate(body)
+
+
+    }
 
 }
 

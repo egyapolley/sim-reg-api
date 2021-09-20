@@ -16,20 +16,13 @@ const UserSchema = new mongoose.Schema({
         required:true,
 
     },
-
-    accountNumber:{
+    channel : {
         type:String,
-        default:"",
-        required:false,
-        unique:true,
-    },
-
-    channel:{
-        type:String,
-        lowercase: true,
+        lowercase:true,
         required:true,
-        unique:true,
+
     }
+
 
 
 });

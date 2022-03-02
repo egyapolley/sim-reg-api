@@ -4,19 +4,17 @@ const mongoose = require("mongoose");
 const helmet = require("helmet");
 
 const sequelize = require("./utils/sql_database");
-const {Logs} = require("./models/sql_models");
+const {ServiceType} = require("./models/sql_models");
 
 
-require("dotenv").config();
+
 
 mongoose.connect("mongodb://localhost/sim_reg", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
 }).then(() => {
     console.log("MongoDB connected")
-    sequelize.sync({
-
-    })
+    sequelize.sync()
         .then(() => {
             console.log("Sequelize connected")
 

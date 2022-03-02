@@ -1,35 +1,15 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/user");
+const Session = require("../models/session")
 const validator = require("../utils/validators");
 const passport = require("passport");
 const utils = require("../utils/main_utils")
 const BasicStrategy = require("passport-http").BasicStrategy;
 const moment = require("moment");
 
-
-const soapRequest = require("easy-soap-request");
-const parser = require('fast-xml-parser');
-const he = require('he');
-const options = {
-    attributeNamePrefix: "@_",
-    attrNodeName: "attr", //default is 'false'
-    textNodeName: "#text",
-    ignoreAttributes: true,
-    ignoreNameSpace: true,
-    allowBooleanAttributes: false,
-    parseNodeValue: true,
-    parseAttributeValue: false,
-    trimValues: true,
-    cdataTagName: "__cdata", //default is 'false'
-    cdataPositionChar: "\\c",
-    parseTrueNumberOnly: false,
-    arrayMode: false,
-    attrValueProcessor: (val, attrName) => he.decode(val, {isAttributeValue: true}),
-    tagValueProcessor: (val, tagName) => he.decode(val),
-    stopNodes: ["parse-me-as-string"]
-};
-
+const {ServiceType, AgentMapping} = require("../models/sql_models")
+let agentMapping = {}
 passport.use(new BasicStrategy(
     function (username, password, done) {
         User.findOne({username: username}, function (err, user) {
@@ -53,93 +33,245 @@ passport.use(new BasicStrategy(
     }
 ));
 
-router.post("/register_new", passport.authenticate('basic', {
+router.post("/register", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
 
+    let original_payload = req.body
+
+    let {
+        msisdn, first_name, last_name, transaction_id, gender, dob, channel, agent_msisdn,
+        address, nationality, service_type, customer_type,
+        national_Id_type, ghana_card_number, region, country,
+        email, phone_contact, digital_address, city, reference
+    } = req.body
+
+
     try {
+        /*STEP 1 : Check Request parameters */
         const {error} = validator.createNew(req.body);
         if (error) {
-            return res.json({
-                status: 2,
-                reason: error.message
+            return res.status(400).json({
+                Transaction_id: transaction_id,
+                is_valid: false,
+                SUUID: null,
+                errorcode: 2,
+                ResponseMessage: error.message
             })
         }
-        const {channel} = req.body;
-        console.log(req.user.channel)
-        if (channel.toLowerCase() !== req.user.channel) {
-            return res.json({
-                status: 2,
-                reason: `Invalid Request channel ${channel}`
+        /*STEP 2 : Check Agent msisdn map to Agent Login */
+        const agent_login = await getAgentMapping(agent_msisdn)
+        if (!agent_login) return res.json({
+            Transaction_id: transaction_id,
+            is_valid: false,
+            SUUID: null,
+            errorcode: 2,
+            ResponseMessage: `agent_Msisdn ${agent_msisdn} not assigned to a login`
+        })
+
+        original_payload = {...original_payload, agent_login}
+
+        /*STEP 3 : Check NEW REGISTRATION */
+        if (customer_type === "NEW") {
+
+            /*STEP 3.1 : For NEW REG,verify account not USED and number is valid */
+            const isPreUse = await utils.verifyINPreUse(msisdn)
+            if (!isPreUse) return res.json({
+                Transaction_id: transaction_id,
+                is_valid: false,
+                SUUID: null,
+                errorcode: 2,
+                ResponseMessage: `msisdn ${msisdn} is not a valid surfline number`
+
             })
+
+        } else {
+            /*STEP 4 : Check EXISTING REGISTRATION */
+            const data = {dob, reference, msisdn}
+
+            /*STEP 4.1 : For EIXSTING REG, Check if account is valid and data matches in SIEBEL */
+            const isValid = await utils.verifyExisting(data)
+            if (!isValid) res.json({
+                Transaction_id: transaction_id,
+                is_valid: false,
+                SUUID: null,
+                errorcode: 2,
+                ResponseMessage: `msisdn ${msisdn} is not a valid surfline number`
+            })
+
+
         }
-        let {surflineNumber, first_name, last_name,agentId,
-            transaction_id, gender, dob,
-            address, nationality, serviceType,
-            national_Id_type, ghana_card_number, region, country,
-            email, phone_contact, digital_address, city} = req.body
 
-        const url = "http://172.25.33.165:7777/soa-infra/services/surflinedomain/ProcessCustomerActivationWebAppReqABCSImpl/processcustomeractivationwebappreqabcsimpl_client_ep";
-        const Headers = {
-            'User-Agent': 'NodeApp',
-            'Content-Type': 'text/xml;charset=UTF-8',
-        };
+        /*STEP 5 : VALIDATE NIA and FETCH SUUID and KYC DATA */
+        const niaResponse = await utils.niaVerify({first_name, last_name, ghana_card_number})
+        if (niaResponse) {
+            const {isValid, suuid, data} = niaResponse
+            if (isValid) {
+                /*STEP 5.1 : SAVE nia payload and original payload in a session */
+                await Session.save({transaction_id,msisdn, suuid,original_payload, nia_response: data})
+                return res.json({
+                    Transaction_id: transaction_id,
+                    is_valid: true,
+                    SUUID: suuid
 
-        let soapXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-             <soapenv:Body>
-                <ExecuteProcess_Input xmlns="http://webappdevelopment.org">
-                   <CustomerDetails>
-                      <MSISDN>${surflineNumber}</MSISDN>
-                      <SIM/>
-                      <Source>${agentId}</Source>
-                      <UserId>MobileApp</UserId>
-                      <LastName>${last_name}</LastName>
-                      <FirstName>${first_name}</FirstName>
-                      <MiddleName/>
-                      <MM/>
-                      <MF>${gender}</MF>
-                      <Nationality>${nationality}</Nationality>
-                      <DocVerified/>
-                      <PreferredCommunications>SMS</PreferredCommunications>
-                      <CellularPhone>${phone_contact}</CellularPhone>
-                      <EmailAddress>${parseField(email)}</EmailAddress>
-                      <AddressLine1>${address}</AddressLine1>
-                      <AddressLine2/>
-                      <POBox/>
-                      <City>${city}</City>
-                      <Region>${region}</Region>
-                      <Country></Country>
-                      <IDType>${national_Id_type}</IDType>
-                      <IDExpirationDate/>
-                      <IDInformation>${ghana_card_number}</IDInformation>
-                      <Employer/>
-                      <Occupation/>
-                      <JobTitle>${gender}</JobTitle>
-                      <BirthDate>${dob}</BirthDate>
-                      <MotherMaidenName/>
-                      <AccountType>Residential</AccountType>
-                      <AccountSegment>Individual</AccountSegment>
-                      <AccountCategory>Mid value</AccountCategory>
-                      <VIP/>
-                      <RequestId>${transaction_id}</RequestId>
-                      <Field1/>
-                      <Field2/>
-                      <Field3/>
-                      <Field4/>
-                      <Field5/>
-                   </CustomerDetails>
-                </ExecuteProcess_Input>
-             </soapenv:Body>
-          </soapenv:Envelope>`
-        const {response} = await soapRequest({url: url, headers: Headers, xml: soapXML, timeout: 5000}); // Optional timeout parameter(milliseconds)
-        const {body} = response;
-        let jsonObj = parser.parse(body, options);
-        console.log(jsonObj.Envelope.Body.ExecuteProcess_Output)
-        res.json({status: 0, reason: "success"})
+                })
+            }
+        }
+        res.json({
+            Transaction_id: transaction_id,
+            is_valid: false,
+            SUUID: null,
+            errorcode: 2,
+            ResponseMessage: `Card ${ghana_card_number} not valid`
+        })
+
 
     } catch (ex) {
         console.log(ex)
-        res.json({status:1, reason:"error"})
+        res.json({
+            Transaction_id: transaction_id,
+            is_valid: false,
+            SUUID: null,
+            errorcode: 1,
+            ResponseMessage: `System Error`
+        })
+
+
+    }
+
+})
+
+router.post("/bio_capture", passport.authenticate('basic', {
+    session: false
+}), async (req, res) => {
+    let {transaction_id, agent_msisdn, msisdn, biometric_data, ghana_card_number, location, suuid} = req.body
+
+    try {
+        const {error} = validator.bioCapture(req.body);
+        if (error) {
+            return res.status(400).json({
+                Transaction_id: transaction_id,
+                data_received: false,
+                simcard_number: msisdn,
+                responseCode: 400,
+                simstatus: "not activated",
+                errorcode: 2,
+                ResponseMessage: error.message
+            })
+        }
+        const session = await Session.findOne({transaction_id,msisdn,suuid})
+        console.log(JSON.stringify(session))
+        if (!session) return res.status(400).json({
+            Transaction_id: transaction_id,
+            data_received: false,
+            simcard_number: msisdn,
+            responseCode: 400,
+            simstatus: "not activated",
+            errorcode: 2,
+            ResponseMessage: `${transaction_id} is not valid`
+
+        })
+
+        let {
+            msisdn, first_name, last_name, transaction_id, gender, dob, channel,agent_msisdn,
+            address, nationality, service_type, customer_type, agent_login,
+            national_Id_type, ghana_card_number, region, country,
+            email, phone_contact, digital_address, city, reference
+        } = session.original_payload
+
+        if (customer_type === "NEW") {
+            const data = {
+                msisdn,
+                first_name,
+                last_name,
+                agent_login,
+                transaction_id,
+                gender,
+                dob,
+                address,
+                nationality,
+                national_Id_type,
+                ghana_card_number,
+                region,
+                country,
+                email,
+                phone_contact,
+                digital_address,
+                city
+            }
+
+            if (process.env.SIEBEL_ONLINE === "online") {
+
+                const {status} = await utils.registerSiebel(data)
+                if (status === 1) {
+                    res.json({
+                        Transaction_id: transaction_id,
+                        data_received: false,
+                        simcard_number: msisdn,
+                        responseCode: 200,
+                        simstatus: "activated",
+                    })
+                } else res.status(500).json({
+                    Transaction_id: transaction_id,
+                    data_received: false,
+                    simcard_number: msisdn,
+                    responseCode: 500,
+                    simstatus: "not activated",
+                    errorcode: 1,
+                    errorMessage: `System Error`
+                })
+
+
+            } else {
+                const {status} = await utils.activateIN(data)
+                if (status === 1) {
+                    res.json({
+                        Transaction_id: transaction_id,
+                        data_received: false,
+                        simcard_number: msisdn,
+                        responseCode: 200,
+                        simstatus: "activated",
+                    })
+
+                } else res.status(500).json({
+                    Transaction_id: transaction_id,
+                    data_received: false,
+                    simcard_number: msisdn,
+                    responseCode: 500,
+                    simstatus: "not activated",
+                    errorcode: 1,
+                    errorMessage: `System Error`
+                })
+
+            }
+
+            if (service_type !== "NewPrepaidOffer") {
+                await utils.updateServiceClass_SIEBEL({msisdn, service_type})
+            }
+
+
+        } else {
+            res.json({
+                Transaction_id: transaction_id,
+                data_received:true,
+                MSISDN: msisdn,
+                SMS_status:"sent"
+            })
+
+        }
+
+
+    } catch (ex) {
+        console.log(ex)
+        res.status(500).json({
+            Transaction_id: transaction_id,
+            data_received: false,
+            simcard_number: msisdn,
+            responseCode: 500,
+            simstatus: "not activated",
+            errorcode: 1,
+            errorMessage: `System Error`
+        })
 
     }
 
@@ -148,33 +280,18 @@ router.post("/register_new", passport.authenticate('basic', {
 router.get("/service_types", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
-
     try {
-        const {error} = validator.getServiceTypes(req.query);
-        if (error) {
-            return res.json({
-                status: 2,
-                reason: error.message
-            })
-        }
-        const {channel} = req.query;
 
-        if (channel.toLowerCase() !== req.user.channel) {
-            return res.json({
-                status: 2,
-                reason: `Invalid Request channel ${channel}`
-            })
-        }
-
-        res.json({status: 0, reason: "success",serviceTypes:[
-                {value:"default",label:"Default"},
-                {value:"alwaysON_Group",label:"AlwaysON Group"},
-                {value:"sme",label:"SME"},
-        ]})
+        let serviceTypes = await ServiceType.findAll()
+        serviceTypes = serviceTypes.map(value => {
+            const {order: index, name} = value
+            return {index, name}
+        })
+        res.json({status: 0, reason: "success", serviceTypes})
 
     } catch (ex) {
         console.log(ex)
-        res.json({status:1, reason:"error"})
+        res.json({status: 1, reason: "error"})
 
     }
 
@@ -203,8 +320,23 @@ router.post("/user", async (req, res) => {
 module.exports = router;
 
 
-function parseField(field) {
-    return field ? field : ""
+async function getAgentMapping(agentMsisdn) {
+    if (agentMapping[agentMsisdn]) return agentMapping[agentMsisdn]
+
+    try {
+        let tempMapping = {}
+        const data = await AgentMapping.findAll()
+        data.forEach((el) => {
+            const {agentMsisdn, agentLogin} = el
+            tempMapping[agentMsisdn] = agentLogin
+        })
+        agentMapping = tempMapping
+        return agentMapping[agentMsisdn] ? agentMapping[agentMsisdn] : null
+    } catch (ex) {
+        return null
+    }
+
 
 }
+
 

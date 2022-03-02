@@ -5,23 +5,15 @@ module.exports = {
     createNew: (body) => {
 
         const schema = Joi.object({
-            surflineNumber: Joi.string()
+            msisdn: Joi.string()
                 .length(12)
                 .regex(/233[0-9]{9}/)
                 .required()
                 .messages({"string.pattern.base": "MSISDN format is invalid.Must start with 233"}),
-            serviceType:Joi.string()
-                .valid('Default','SME','AlwaysON Group')
+            service_type: Joi.string()
                 .required(),
-            channel: Joi.string()
-                .min(3)
-                .max(50)
-                .lowercase()
-                .required(),
-            agentId: Joi.string()
-                .min(3)
-                .max(50)
-                .lowercase()
+            customer_type: Joi.string()
+                .valid('NEW', 'EXISTING')
                 .required(),
             transaction_id: Joi.string()
                 .min(3)
@@ -31,6 +23,11 @@ module.exports = {
                 .max(255)
                 .trim()
                 .lowercase()
+                .required(),
+            country: Joi.string()
+                .min(2)
+                .max(255)
+                .trim()
                 .required(),
             last_name: Joi.string()
                 .min(2)
@@ -45,10 +42,15 @@ module.exports = {
             dob: Joi.string()
                 .trim()
                 .required(),
+            agent_msisdn: Joi.string()
+                .trim()
+                .required(),
             address: Joi.string()
                 .trim()
                 .required(),
             residential_address: Joi.string()
+                .trim(),
+            agent_Msisdn: Joi.string()
                 .trim(),
             region: Joi.string()
                 .trim()
@@ -68,6 +70,8 @@ module.exports = {
             email: Joi.string()
                 .trim()
                 .email(),
+            reference: Joi.string()
+                .trim(),
             phone_contact: Joi.string()
                 .length(12)
                 .regex(/233[0-9]{9}/)
@@ -81,24 +85,37 @@ module.exports = {
 
 
     },
-    getServiceTypes:(body)=>{
+
+    bioCapture: (body) => {
+
         const schema = Joi.object({
-            surflineNumber: Joi.string()
-                .length(12)
-                .regex(/233[0-9]{9}/)
+            transaction_id: Joi.string()
                 .required()
-                .messages({"string.pattern.base": "MSISDN format is invalid.Must start with 233"}),
-            channel: Joi.string()
-                .min(3)
-                .max(50)
-                .lowercase()
+                .trim(),
+            msisdn: Joi.string()
                 .required(),
+            agent_msisdn: Joi.string()
+                .required(),
+            biometric_data: Joi.string()
+                .required(),
+            suuid: Joi.string()
+                .required(),
+            ghana_card_number: Joi.string()
+                .required(),
+            location: Joi.object({
+                lat: Joi.string()
+                    .required(),
+                lng: Joi.string()
+                    .required(),
+
+            })
+
         });
 
         return schema.validate(body)
 
 
-    }
+    },
 
 }
 

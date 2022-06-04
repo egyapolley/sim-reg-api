@@ -4,12 +4,15 @@ const {XMLParser} = require('fast-xml-parser');
 const {dbUpdate, dbVerify} = require("./oracledbConfig")
 const oracledb = require("oracledb")
 
+const axios = require("axios")
+
 
 require("dotenv").config();
 
 const libDir = process.env.ORA_LIB_DIR
 
 try {
+    console.log(libDir)
     oracledb.initOracleClient({libDir});
 } catch (err) {
     console.error(err);
@@ -34,16 +37,13 @@ const parser = new XMLParser(options)
 
 
 module.exports = {
-    formatDate: (date) => {
-        return moment(date, "YYYYMMDDHHmmss").format("DD-MM-YYYY HH:mm:ss")
 
-    },
     registerSiebel: async (data) => {
 
         let {
-            surflineNumber, first_name, last_name, agentId,
+            msisdn, first_name, last_name, agent_login,
             transaction_id, gender, dob,
-            address, nationality, serviceType,
+            address,
             national_Id_type, ghana_card_number, region, country,
             email, phone_contact, digital_address, city
         } = data
@@ -59,20 +59,20 @@ module.exports = {
              <soapenv:Body>
                 <ExecuteProcess_Input xmlns="http://webappdevelopment.org">
                    <CustomerDetails>
-                      <MSISDN>${surflineNumber}</MSISDN>
+                      <MSISDN>${msisdn}</MSISDN>
                       <SIM/>
-                      <Source>${agentId}</Source>
+                      <Source>${agent_login}</Source>
                       <UserId>MobileApp</UserId>
                       <LastName>${last_name}</LastName>
                       <FirstName>${first_name}</FirstName>
                       <MiddleName/>
                       <MM/>
                       <MF>${gender}</MF>
-                      <Nationality>${nationality}</Nationality>
+                      <Nationality>${country}</Nationality>
                       <DocVerified/>
                       <PreferredCommunications>SMS</PreferredCommunications>
                       <CellularPhone>${phone_contact}</CellularPhone>
-                      <EmailAddress>${parseField(email)}</EmailAddress>
+                      ${email ? `<EmailAddress>${email}</EmailAddress>` : `<EmailAddress></EmailAddress>`}
                       <AddressLine1>${address}</AddressLine1>
                       <AddressLine2/>
                       <POBox/>
@@ -85,7 +85,7 @@ module.exports = {
                       <Employer/>
                       <Occupation/>
                       <JobTitle>${gender}</JobTitle>
-                      <BirthDate>${dob}</BirthDate>
+                      <BirthDate>${moment(dob, "DD/MM/YYYY").format("MM/DD/YYYY")}</BirthDate>
                       <MotherMaidenName/>
                       <AccountType>Residential</AccountType>
                       <AccountSegment>Individual</AccountSegment>
@@ -105,17 +105,14 @@ module.exports = {
             const {response} = await soapRequest({url: url, headers: Headers, xml: soapXML, timeout: 10000}); // Optional timeout parameter(milliseconds)
             const {body} = response;
             let jsonObj = parser.parse(body);
-            if (jsonObj.Envelope.Body.ExecuteProcess_Output) {
-                const output = jsonObj.Envelope.Body.ExecuteProcess_Output
-                console.log(output)
-
-            }
-            return {status: 0, reason: "success"}
+            const ResponseBody = jsonObj.Envelope.Body.ExecuteProcess_Output
+            console.log(JSON.stringify(ResponseBody))
+            return !!(ResponseBody && ResponseBody.CustomerDetails && ResponseBody.CustomerDetails.ErrorMessage === 'Accepted');
 
 
         } catch (ex) {
             console.log(ex)
-            return {status: 1, reason: "system error"}
+            return false
 
 
         }
@@ -139,52 +136,7 @@ module.exports = {
             'Content-Type': 'text/xml;charset=UTF-8',
         };
 
-        let soapXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-             <soapenv:Body>
-                <ExecuteProcess_Input xmlns="http://webappdevelopment.org">
-                   <CustomerDetails>
-                      <MSISDN>${surflineNumber}</MSISDN>
-                      <SIM/>
-                      <Source>${agentId}</Source>
-                      <UserId>MobileApp</UserId>
-                      <LastName>${last_name}</LastName>
-                      <FirstName>${first_name}</FirstName>
-                      <MiddleName/>
-                      <MM/>
-                      <MF>${gender}</MF>
-                      <Nationality>${nationality}</Nationality>
-                      <DocVerified/>
-                      <PreferredCommunications>SMS</PreferredCommunications>
-                      <CellularPhone>${phone_contact}</CellularPhone>
-                      <EmailAddress>${parseField(email)}</EmailAddress>
-                      <AddressLine1>${address}</AddressLine1>
-                      <AddressLine2/>
-                      <POBox/>
-                      <City>${city}</City>
-                      <Region>${region}</Region>
-                      <Country>${country}</Country>
-                      <IDType>${national_Id_type}</IDType>
-                      <IDExpirationDate/>
-                      <IDInformation>${ghana_card_number}</IDInformation>
-                      <Employer/>
-                      <Occupation/>
-                      <JobTitle>${gender}</JobTitle>
-                      <BirthDate>${dob}</BirthDate>
-                      <MotherMaidenName/>
-                      <AccountType>Residential</AccountType>
-                      <AccountSegment>Individual</AccountSegment>
-                      <AccountCategory>Mid value</AccountCategory>
-                      <VIP/>
-                      <RequestId>${transaction_id}</RequestId>
-                      <Field1/>
-                      <Field2/>
-                      <Field3/>
-                      <Field4/>
-                      <Field5/>
-                   </CustomerDetails>
-                </ExecuteProcess_Input>
-             </soapenv:Body>
-          </soapenv:Envelope>`
+        let soapXML = ``
         try {
             const {response} = await soapRequest({url: url, headers: Headers, xml: soapXML, timeout: 10000}); // Optional timeout parameter(milliseconds)
             const {body} = response;
@@ -208,6 +160,8 @@ module.exports = {
     },
     verifyExisting: async (data) => {
         const {dob, reference: contact, msisdn} = data
+
+
         let connection = null;
         try {
             connection = await oracledb.getConnection(dbVerify)
@@ -216,7 +170,7 @@ module.exports = {
             const options = {outFormat: oracledb.OUT_FORMAT_OBJECT}
             const {rows} = await connection.execute(sql, binds, options)
             console.log(rows)
-            return rows.length > 0 && rows[0].CELLPHONENUMBER === contact
+            return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "DD/MM/YYYY").isSame(moment((rows[0].DOB).toString())))
 
         } catch (ex) {
             console.log(ex)
@@ -299,12 +253,48 @@ module.exports = {
 
 
     },
-    niaVerify: async (data) => {
-        return ({
-            isValid: true,
-            suuid: "69E07D7B1",
-            response: []
-        })
+    niaVerify: async (lastname, ghanaCard) => {
+
+
+        const body = {
+            "deviceInfo": {"deviceId": "inserver", "deviceType": "DESKTOP", "notificationToken": null},
+            "username": `${process.env.NIA_USERNAME}`,
+            "password": `${process.env.NIA_PASSWORD}`
+        }
+
+        const authURL = `${process.env.NIA_AUTH_URL}`
+        const dataURL = `${process.env.NIA_DATA_URL}`
+
+        const {data: authResponse} = await axios.post(authURL, body)
+        console.log(JSON.stringify(authResponse))
+
+        const {success, code} = authResponse
+        if (success && code === '00') {
+            const {accessToken} = authResponse.data;
+            if (accessToken) {
+
+                const headers = {
+                    Authorization: `Bearer ${accessToken}`
+                }
+
+                const dataBody = {
+                    pinNumber: ghanaCard,
+                    surname: lastname
+                }
+
+                const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
+                console.log(JSON.stringify(dataResponse))
+
+                const {success, code, data} = dataResponse
+                if (success && code === '00' && data.shortGuid) {
+                    return {suuid: data.shortGuid, data}
+                }
+
+            }
+        }
+
+
+        return null;
     }
 
 

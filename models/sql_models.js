@@ -75,7 +75,91 @@ const AgentMapping = sequelize.define("agentMapping", {
         allowNull:false
     },
 });
+const GhanaIDs = sequelize.define("ghanaIds", {
+    id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        allowNull: false,
+        autoIncrement: true
+    },
+    pinNumber: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        unique:true
+    },
+    suuid: {
+        type: Sequelize.STRING,
+        allowNull:false
+    },
+    surname:{
+        type: Sequelize.STRING,
+        allowNull:false
+    },
+    niaData: {
+        type: Sequelize.STRING,
+        allowNull:false,
+    }
+});
+const RegisteredMsisdn = sequelize.define("registeredMsisdn", {
+    id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        allowNull: false,
+        autoIncrement: true
+    },
+    cardNumber: {
+        type: Sequelize.STRING,
+        allowNull: false,
+    },
+    msisdn: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        unique:true
+    },
+
+    transaction_id: {
+        type: Sequelize.STRING,
+        allowNull:false
+    },
+
+    staffId: {
+        type: Sequelize.STRING,
+        allowNull: false,
+    },
+    suuid: {
+        type: Sequelize.STRING,
+        allowNull:false
+    },
+    surname:{
+        type: Sequelize.STRING,
+        allowNull:false
+    },
+    originalPayload: {
+        type: Sequelize.STRING,
+        allowNull:false,
+    }
+
+});
+const INActivations = sequelize.define("inActivations", {
+    id: {
+        type: Sequelize.INTEGER,
+        primaryKey: true,
+        allowNull: false,
+        autoIncrement: true
+    },
+    msisdn: {
+        type: Sequelize.STRING,
+        allowNull: false,
+        unique:true
+    },
+    data: {
+        type: Sequelize.STRING,
+        allowNull:false,
+    }
+
+});
 
 
 
-module.exports = {ServiceType,AgentMapping}
+
+module.exports = {ServiceType,AgentMapping,GhanaIDs,RegisteredMsisdn,INActivations}

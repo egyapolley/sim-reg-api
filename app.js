@@ -4,9 +4,7 @@ const mongoose = require("mongoose");
 const helmet = require("helmet");
 
 const sequelize = require("./utils/sql_database");
-const {ServiceType} = require("./models/sql_models");
-
-
+const {ServiceType,AgentMapping,GhanaIDs,RegisteredMsisdn,INActivations} = require("./models/sql_models");
 
 
 mongoose.connect("mongodb://localhost/sim_reg", {

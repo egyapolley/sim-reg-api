@@ -2,7 +2,7 @@ const Joi = require("joi");
 
 module.exports = {
 
-    createNew: (body) => {
+    register: (body) => {
 
         const schema = Joi.object({
             msisdn: Joi.string()
@@ -22,7 +22,7 @@ module.exports = {
                 .min(2)
                 .max(255)
                 .trim()
-                .lowercase()
+                .uppercase()
                 .required(),
             country: Joi.string()
                 .min(2)
@@ -33,7 +33,7 @@ module.exports = {
                 .min(2)
                 .max(255)
                 .trim()
-                .lowercase()
+                .uppercase()
                 .required(),
             gender: Joi.string()
                 .trim()

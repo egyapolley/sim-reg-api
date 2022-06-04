@@ -8,8 +8,10 @@ const utils = require("../utils/main_utils")
 const BasicStrategy = require("passport-http").BasicStrategy;
 const moment = require("moment");
 
-const {ServiceType, AgentMapping} = require("../models/sql_models")
+const {ServiceType, AgentMapping, GhanaIDs, RegisteredMsisdn,INActivations} = require("../models/sql_models")
+
 let agentMapping = {}
+
 passport.use(new BasicStrategy(
     function (username, password, done) {
         User.findOne({username: username}, function (err, user) {
@@ -39,17 +41,11 @@ router.post("/register", passport.authenticate('basic', {
 
     let original_payload = req.body
 
-    let {
-        msisdn, first_name, last_name, transaction_id, gender, dob, channel, agent_msisdn,
-        address, nationality, service_type, customer_type,
-        national_Id_type, ghana_card_number, region, country,
-        email, phone_contact, digital_address, city, reference
-    } = req.body
-
+    let {msisdn, last_name, transaction_id, dob, agent_msisdn, customer_type, ghana_card_number, reference} = req.body
 
     try {
         /*STEP 1 : Check Request parameters */
-        const {error} = validator.createNew(req.body);
+        const {error} = validator.register(req.body);
         if (error) {
             return res.status(400).json({
                 Transaction_id: transaction_id,
@@ -59,7 +55,22 @@ router.post("/register", passport.authenticate('basic', {
                 ResponseMessage: error.message
             })
         }
+
+        /*STEP 2 : Check if number is already Registered */
+
+        const registered = await RegisteredMsisdn.findOne({where: {msisdn}})
+        if (registered) return res.json({
+            Transaction_id: transaction_id,
+            is_valid: false,
+            SUUID: null,
+            errorcode: 2,
+            ResponseMessage: `${msisdn} already assisgned to ${registered.cardNumber}`
+
+        })
+
         /*STEP 2 : Check Agent msisdn map to Agent Login */
+
+
         const agent_login = await getAgentMapping(agent_msisdn)
         if (!agent_login) return res.json({
             Transaction_id: transaction_id,
@@ -102,21 +113,54 @@ router.post("/register", passport.authenticate('basic', {
 
         }
 
-        /*STEP 5 : VALIDATE NIA and FETCH SUUID and KYC DATA */
-        const niaResponse = await utils.niaVerify({first_name, last_name, ghana_card_number})
-        if (niaResponse) {
-            const {isValid, suuid, data} = niaResponse
-            if (isValid) {
-                /*STEP 5.1 : SAVE nia payload and original payload in a session */
-                await Session.save({transaction_id,msisdn, suuid,original_payload, nia_response: data})
+        /*STEP 5 : CHECK LOCAL DB & FETCH NIA INFO */
+        const ghanaID = await GhanaIDs.findOne({where: {pinNumber: ghana_card_number, surname: last_name}})
+        if (ghanaID) {
+            const {suuid, niaData} = ghanaID
+            let session = new Session({
+                transaction_id,
+                msisdn,
+                suuid,
+                ghana_card_number,
+                original_payload,
+                nia_response: JSON.parse(niaData)
+            })
+            await session.save()
+            return res.json({
+                Transaction_id: transaction_id,
+                is_valid: true,
+                SUUID: suuid
+
+            })
+            /*STEP 6 : VALIDATE NIA and FETCH SUUID and KYC DATA */
+        } else {
+            const niaResponse = await utils.niaVerify(last_name, ghana_card_number)
+            if (niaResponse) {
+                const {suuid, data} = niaResponse
+                let session = new Session({
+                    transaction_id,
+                    msisdn,
+                    suuid,
+                    ghana_card_number,
+                    original_payload
+                })
+                await session.save()
+                await GhanaIDs.create({
+                    surname: last_name,
+                    pinNumber: ghana_card_number,
+                    suuid,
+                    niaData: JSON.stringify(data)
+                })
                 return res.json({
                     Transaction_id: transaction_id,
                     is_valid: true,
                     SUUID: suuid
 
                 })
+
             }
         }
+
         res.json({
             Transaction_id: transaction_id,
             is_valid: false,
@@ -141,14 +185,16 @@ router.post("/register", passport.authenticate('basic', {
 
 })
 
-router.post("/bio_capture", passport.authenticate('basic', {
+router.post("/bio_captured", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
-    let {transaction_id, agent_msisdn, msisdn, biometric_data, ghana_card_number, location, suuid} = req.body
 
+    let {transaction_id, msisdn, ghana_card_number, suuid} = req.body
     try {
+
         const {error} = validator.bioCapture(req.body);
         if (error) {
+
             return res.status(400).json({
                 Transaction_id: transaction_id,
                 data_received: false,
@@ -159,8 +205,9 @@ router.post("/bio_capture", passport.authenticate('basic', {
                 ResponseMessage: error.message
             })
         }
-        const session = await Session.findOne({transaction_id,msisdn,suuid})
-        console.log(JSON.stringify(session))
+
+
+        const session = await Session.findOne({transaction_id, msisdn, suuid, ghana_card_number})
         if (!session) return res.status(400).json({
             Transaction_id: transaction_id,
             data_received: false,
@@ -173,10 +220,10 @@ router.post("/bio_capture", passport.authenticate('basic', {
         })
 
         let {
-            msisdn, first_name, last_name, transaction_id, gender, dob, channel,agent_msisdn,
+            first_name, last_name, gender, dob,
             address, nationality, service_type, customer_type, agent_login,
-            national_Id_type, ghana_card_number, region, country,
-            email, phone_contact, digital_address, city, reference
+            national_Id_type, region, country,
+            email, phone_contact, digital_address, city
         } = session.original_payload
 
         if (customer_type === "NEW") {
@@ -202,15 +249,27 @@ router.post("/bio_capture", passport.authenticate('basic', {
 
             if (process.env.SIEBEL_ONLINE === "online") {
 
-                const {status} = await utils.registerSiebel(data)
-                if (status === 1) {
+                const status = await utils.registerSiebel(data)
+                if (status) {
                     res.json({
                         Transaction_id: transaction_id,
-                        data_received: false,
+                        data_received: true,
                         simcard_number: msisdn,
                         responseCode: 200,
                         simstatus: "activated",
                     })
+
+                    await RegisteredMsisdn.create({
+                        cardNumber: ghana_card_number,
+                        msisdn,
+                        staffId: agent_login,
+                        suuid,
+                        surname: last_name,
+                        transaction_id,
+                        originalPayload: JSON.stringify(session.original_payload)
+                    })
+
+                    await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
                 } else res.status(500).json({
                     Transaction_id: transaction_id,
                     data_received: false,
@@ -221,10 +280,9 @@ router.post("/bio_capture", passport.authenticate('basic', {
                     errorMessage: `System Error`
                 })
 
-
             } else {
-                const {status} = await utils.activateIN(data)
-                if (status === 1) {
+                const status = await utils.activateIN(data)
+                if (status) {
                     res.json({
                         Transaction_id: transaction_id,
                         data_received: false,
@@ -232,6 +290,20 @@ router.post("/bio_capture", passport.authenticate('basic', {
                         responseCode: 200,
                         simstatus: "activated",
                     })
+
+                    await RegisteredMsisdn.create({
+                        cardNumber: ghana_card_number,
+                        msisdn,
+                        staffId: agent_login,
+                        suuid,
+                        surname: last_name,
+                        transaction_id,
+                        originalPayload: JSON.stringify(session.original_payload)
+                    })
+
+                    await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+                    await INActivations.create({msisdn,data:JSON.stringify(data)})
+
 
                 } else res.status(500).json({
                     Transaction_id: transaction_id,
@@ -253,10 +325,22 @@ router.post("/bio_capture", passport.authenticate('basic', {
         } else {
             res.json({
                 Transaction_id: transaction_id,
-                data_received:true,
+                data_received: true,
                 MSISDN: msisdn,
-                SMS_status:"sent"
+                SMS_status: "sent"
             })
+
+            await RegisteredMsisdn.create({
+                cardNumber: ghana_card_number,
+                msisdn,
+                staffId: agent_login,
+                suuid,
+                surname: last_name,
+                transaction_id,
+                originalPayload: JSON.stringify(session.original_payload)
+            })
+
+            await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
 
         }
 

@@ -14,16 +14,15 @@ const SessionSchema = new mongoose.Schema({
         type:String,
         required:true,
     },
+    ghana_card_number: {
+        type:String,
+        required:true,
+    },
     original_payload:{
-        type:String,
+        type:Object,
         required:true,
 
-    },
-    nia_response:{
-        type:String,
-        required:true,
-
-    },
+    }
 
 
 });

@@ -121,39 +121,41 @@ module.exports = {
     },
     activateIN: async (data) => {
 
-        let {
-            surflineNumber, first_name, last_name, agentId,
-            transaction_id, gender, dob,
-            address, nationality, serviceType,
-            national_Id_type, ghana_card_number, region, country,
-            email, phone_contact, digital_address, city
-        } = data
+        let {msisdn, email, phone_contact} = data
 
-        gender = gender === 'male' ? 'M' : 'F'
-        const url = `${process.env.SIEBEL_URL}`;
-        const Headers = {
+
+        const url = process.env.IN_OSD
+        const sampleHeaders = {
             'User-Agent': 'NodeApp',
             'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': 'http://SCLINSMSVM01P/wsdls/Surfline/VoucherRecharge_USSD/VoucherRecharge_USSD',
+            'Authorization': `${process.env.OSD_AUTH}`
         };
 
-        let soapXML = ``
+
+        let xmlRequest = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sim="http://SCLINSMSVM01P/wsdls/Surfline/SIM_REG_IN_ACTIVATION.wsdl">
+<soapenv:Header/>
+   <soapenv:Body>
+      <sim:SIM_REG_IN_ACTIVATIONRequest>
+         <CC_Calling_Party_Id>${msisdn}</CC_Calling_Party_Id>
+         <VOUCHER_SERIAL>${phone_contact}</VOUCHER_SERIAL>
+         <VOUCHER_TYPE>SMS</VOUCHER_TYPE>
+         <TRANSACTION_ID>${email}</TRANSACTION_ID>
+         <WALLET_TYPE>Primary</WALLET_TYPE>
+      </sim:SIM_REG_IN_ACTIVATIONRequest>
+   </soapenv:Body>
+</soapenv:Envelope>`;
         try {
-            const {response} = await soapRequest({url: url, headers: Headers, xml: soapXML, timeout: 10000}); // Optional timeout parameter(milliseconds)
+            const {response} = await soapRequest({url: url, headers: sampleHeaders, xml: xmlRequest, timeout: 10000}); // Optional timeout parameter(milliseconds)
+
             const {body} = response;
-            let jsonObj = parser.parse(body);
-            if (jsonObj.Envelope.Body.ExecuteProcess_Output) {
-                const output = jsonObj.Envelope.Body.ExecuteProcess_Output
-                console.log(output)
 
-            }
-            return {status: 0, reason: "success"}
-
-
+            let jsonObj = parser.parse(body, options);
+            let result = jsonObj.Envelope.Body;
+            return (result.SIM_REG_IN_ACTIVATIONResult==="")
         } catch (ex) {
             console.log(ex)
-            return {status: 1, reason: "system error"}
-
-
+            return false
         }
 
 
@@ -169,7 +171,6 @@ module.exports = {
             const binds = {msisdn}
             const options = {outFormat: oracledb.OUT_FORMAT_OBJECT}
             const {rows} = await connection.execute(sql, binds, options)
-            console.log(rows)
             return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "DD/MM/YYYY").isSame(moment((rows[0].DOB).toString())))
 
         } catch (ex) {

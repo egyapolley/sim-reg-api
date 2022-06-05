@@ -285,7 +285,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                 if (status) {
                     res.json({
                         Transaction_id: transaction_id,
-                        data_received: false,
+                        data_received: true,
                         simcard_number: msisdn,
                         responseCode: 200,
                         simstatus: "activated",

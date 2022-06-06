@@ -319,6 +319,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
 
             if (service_type !== "NewPrepaidOffer") {
                 await utils.updateServiceClass_SIEBEL({msisdn, service_type})
+                await utils.updateServiceClass_IN({msisdn,service_type})
             }
 
 

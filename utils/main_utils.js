@@ -152,7 +152,7 @@ module.exports = {
 
             let jsonObj = parser.parse(body, options);
             let result = jsonObj.Envelope.Body;
-            return (result.SIM_REG_IN_ACTIVATIONResult==="")
+            return (result.SIM_REG_IN_ACTIVATIONResult === "")
         } catch (ex) {
             console.log(ex)
             return false
@@ -190,12 +190,12 @@ module.exports = {
 
     },
     updateServiceClass_SIEBEL: async (data) => {
-        const {msisdn, serviceType} = data
+        const {msisdn, service_type} = data
         let connection = null;
         try {
             connection = await oracledb.getConnection(dbUpdate)
             const sql = `UPDATE  siebel.S_INV_PROF@crm_to_bi   set X_SL_OFFER = :serviceType, last_upd=  sysdate  where row_id in (select  a.row_id  from  siebel.S_INV_PROF@crm_to_bi  a, siebel.s_asset@crm_to_bi  b where  b.serial_num =:msisdn and  b.owner_accnt_id  =  a.accnt_id)`
-            const binds = {serviceType, msisdn}
+            const binds = {service_type, msisdn}
             const options = {outFormat: oracledb.OUT_FORMAT_OBJECT, autoCommit: true}
             const result = await connection.execute(sql, binds, options)
             console.log(JSON.stringify(result))
@@ -214,6 +214,48 @@ module.exports = {
             }
 
         }
+
+    },
+    updateServiceClass_IN: async (data) => {
+        const {msisdn, service_type} = data
+
+        try {
+            const soapUrl = process.env.PI_HOST;
+            const soapHeaders = {
+                'User-Agent': 'NodeApp',
+                'Content-Type': 'text/xml;charset=UTF-8',
+                'SOAPAction': 'urn:CCSCD1_QRY',
+            };
+            let xmlBody = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:pi="http://xmlns.oracle.com/communications/ncc/2009/05/15/pi">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <pi:CCSCD1_CHG>
+         <pi:username>${process.env.PI_USER}</pi:username>
+         <pi:password>${process.env.PI_PASS}</pi:password>
+         <pi:MSISDN>${msisdn}</pi:MSISDN>
+         <pi:PRODUCT>${service_type}</pi:PRODUCT>
+         <pi:WALLET_TYPE>Primary</pi:WALLET_TYPE>
+      </pi:CCSCD1_CHG>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+
+            const {response} = await soapRequest({
+                url: soapUrl,
+                headers: soapHeaders,
+                xml: xmlBody,
+                timeout: 8000
+            });
+            const {body} = response;
+            let jsonObj = parser.parse(body);
+            const output = jsonObj.Envelope.Body
+            console.log(JSON.stringify(output))
+            return (output.CCSCD1_CHGResponse && output.CCSCD1_CHGResponse.AUTH)
+        } catch (error) {
+            console.log(error);
+            return false
+
+        }
+
 
     },
     verifyINPreUse: async (msisdn) => {

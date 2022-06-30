@@ -24,7 +24,7 @@ mongoose.connect("mongodb://localhost/sim_reg", {
             let PORT = process.env.PORT;
             let HOST = process.env.HOST;
 
-            app.use(router);
+            app.use("/sim_reg",router);
 
             app.listen(PORT, () => {
                 console.log(`Server running  on url : http://${HOST}:${PORT}`)

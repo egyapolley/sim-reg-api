@@ -308,36 +308,39 @@ module.exports = {
         const authURL = `${process.env.NIA_AUTH_URL}`
         const dataURL = `${process.env.NIA_DATA_URL}`
 
-        const {data: authResponse} = await axios.post(authURL, body)
-        console.log(JSON.stringify(authResponse))
+        try {
+            const {data: authResponse} = await axios.post(authURL, body)
+            console.log(JSON.stringify(authResponse))
 
-        const {success, code} = authResponse
-        if (success && code === '00') {
-            const {accessToken} = authResponse.data;
-            if (accessToken) {
+            const {success, code} = authResponse
+            if (success && code === '00') {
+                const {accessToken} = authResponse.data;
+                if (accessToken) {
 
-                const headers = {
-                    Authorization: `Bearer ${accessToken}`
+                    const headers = {
+                        Authorization: `Bearer ${accessToken}`
+                    }
+
+                    const dataBody = {
+                        pinNumber: ghanaCard,
+                        surname: lastname
+                    }
+
+                    const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
+                    console.log(JSON.stringify(dataResponse))
+
+                    const {success, code, data} = dataResponse
+                    if (success && code === '00' && data.shortGuid) {
+                        return {suuid: data.shortGuid, data}
+                    }
+
                 }
-
-                const dataBody = {
-                    pinNumber: ghanaCard,
-                    surname: lastname
-                }
-
-                const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
-                console.log(JSON.stringify(dataResponse))
-
-                const {success, code, data} = dataResponse
-                if (success && code === '00' && data.shortGuid) {
-                    return {suuid: data.shortGuid, data}
-                }
-
             }
+            return null;
+        } catch (ex) {
+            console.log(ex)
+            return null
         }
-
-
-        return null;
     }
 
 

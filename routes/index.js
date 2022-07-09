@@ -163,12 +163,12 @@ router.post("/register", passport.authenticate('basic', {
             }
         }
 
-        res.json({
+        return  res.json({
             Transaction_id: transaction_id,
             is_valid: false,
             SUUID: null,
             errorcode: 2,
-            ResponseMessage: `Card ${ghana_card_number} not valid`
+            ResponseMessage: `Card ${ghana_card_number} not valid for ${last_name}`
         })
 
 

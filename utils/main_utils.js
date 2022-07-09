@@ -84,7 +84,7 @@ module.exports = {
                       <Employer/>
                       <Occupation/>
                       <JobTitle>${gender}</JobTitle>
-                      <BirthDate>${moment(dob, "DD/MM/YYYY").format("MM/DD/YYYY")}</BirthDate>
+                      <BirthDate>${moment(dob, "YYYY-MM-DD").format("MM/DD/YYYY")}</BirthDate>
                       <MotherMaidenName/>
                       <AccountType>Residential</AccountType>
                       <AccountSegment>Individual</AccountSegment>

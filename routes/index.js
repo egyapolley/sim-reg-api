@@ -39,6 +39,8 @@ router.post("/register", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
 
+    console.log(req.body)
+
     let original_payload = req.body
 
     let {msisdn, last_name, transaction_id, dob, agent_msisdn, customer_type, ghana_card_number, reference} = req.body
@@ -102,7 +104,7 @@ router.post("/register", passport.authenticate('basic', {
 
             /*STEP 4.1 : For EIXSTING REG, Check if account is valid and data matches in SIEBEL */
             const isValid = await utils.verifyExisting(data)
-            if (!isValid) res.json({
+            if (!isValid)  return res.json({
                 Transaction_id: transaction_id,
                 is_valid: false,
                 SUUID: null,

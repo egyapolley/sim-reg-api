@@ -43,12 +43,11 @@ module.exports = {
         let {
             msisdn, first_name, last_name, agent_login,
             transaction_id, gender, dob,
-            address,
-            national_Id_type, ghana_card_number, region, country,
-            email, phone_contact, digital_address, city
+            address, ghana_card_number, region, country,
+            email, phone_contact, city
         } = data
 
-        gender = gender === 'male' ? 'M' : 'F'
+        gender = gender === 'Male' ? 'M' : 'F'
         const url = `${process.env.SIEBEL_URL}`;
         const Headers = {
             'User-Agent': 'NodeApp',
@@ -77,9 +76,9 @@ module.exports = {
                       <AddressLine2/>
                       <POBox/>
                       <City>${city}</City>
-                      <Region>${region}</Region>
+                      <Region>${getRegion(region)}</Region>
                       <Country>${country}</Country>
-                      <IDType>${national_Id_type}</IDType>
+                      <IDType>Ghana card</IDType>
                       <IDExpirationDate/>
                       <IDInformation>${ghana_card_number}</IDInformation>
                       <Employer/>
@@ -171,7 +170,8 @@ module.exports = {
             const binds = {msisdn}
             const options = {outFormat: oracledb.OUT_FORMAT_OBJECT}
             const {rows} = await connection.execute(sql, binds, options)
-            return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "DD/MM/YYYY").isSame(moment((rows[0].DOB).toString())))
+            console.log(JSON.stringify(rows), JSON.stringify(rows[0]))
+            return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
 
         } catch (ex) {
             console.log(ex)
@@ -340,5 +340,22 @@ module.exports = {
         return null;
     }
 
+
+}
+
+
+function getRegion(region) {
+    region = region.toString().toLowerCase();
+    if (region.includes("accra")) return 'Gt. Accra'
+    else if (region.includes("western")) return 'Western'
+    else if (region.includes("ashanti")) return 'Ashanti'
+    else if (region.includes("eastern")) return 'Eastern'
+    else if (region.includes("central")) return 'Central'
+    else if (region.includes("volta")) return 'Volta'
+    else if (region.includes("brong")) return 'BrongAhafo'
+    else if (region.includes("northern")) return 'Northern'
+    else if (region.includes("upper east")) return 'Upper East'
+    else if (region.includes("upper west")) return 'Upper West'
+    else return 'Gt. Accra'
 
 }

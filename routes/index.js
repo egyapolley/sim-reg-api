@@ -191,6 +191,8 @@ router.post("/bio_captured", passport.authenticate('basic', {
     session: false
 }), async (req, res) => {
 
+    console.log(req.body)
+
     let {transaction_id, msisdn, ghana_card_number, suuid} = req.body
     try {
 
@@ -272,7 +274,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                     })
 
                     await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
-                } else res.status(500).json({
+                } else return res.status(500).json({
                     Transaction_id: transaction_id,
                     data_received: false,
                     simcard_number: msisdn,
@@ -307,7 +309,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                     await INActivations.create({msisdn,data:JSON.stringify(data)})
 
 
-                } else res.status(500).json({
+                } else return res.status(500).json({
                     Transaction_id: transaction_id,
                     data_received: false,
                     simcard_number: msisdn,

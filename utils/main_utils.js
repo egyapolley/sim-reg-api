@@ -171,7 +171,8 @@ module.exports = {
             const options = {outFormat: oracledb.OUT_FORMAT_OBJECT}
             const {rows} = await connection.execute(sql, binds, options)
             console.log(JSON.stringify(rows), JSON.stringify(rows[0]))
-            return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
+            //return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
+            return rows.length > 0  && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
 
         } catch (ex) {
             console.log(ex)

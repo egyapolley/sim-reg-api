@@ -8,7 +8,7 @@ const utils = require("../utils/main_utils")
 const BasicStrategy = require("passport-http").BasicStrategy;
 const moment = require("moment");
 
-const {ServiceType, AgentMapping, GhanaIDs, RegisteredMsisdn,INActivations} = require("../models/sql_models")
+const {ServiceType, AgentMapping, GhanaIDs, RegisteredMsisdn, INActivations} = require("../models/sql_models")
 
 let agentMapping = {}
 
@@ -104,7 +104,7 @@ router.post("/register", passport.authenticate('basic', {
 
             /*STEP 4.1 : For EIXSTING REG, Check if account is valid and data matches in SIEBEL */
             const isValid = await utils.verifyExisting(data)
-            if (!isValid)  return res.json({
+            if (!isValid) return res.json({
                 Transaction_id: transaction_id,
                 is_valid: false,
                 SUUID: null,
@@ -163,7 +163,7 @@ router.post("/register", passport.authenticate('basic', {
             }
         }
 
-        return  res.json({
+        return res.json({
             Transaction_id: transaction_id,
             is_valid: false,
             SUUID: null,
@@ -193,10 +193,17 @@ router.post("/bio_captured", passport.authenticate('basic', {
 
     console.log(req.body)
 
-    let {transaction_id, msisdn, ghana_card_number, suuid} = req.body
+    let {transaction_id, msisdn, ghana_card_number, suuid, agent_msisdn, biometric_data} = req.body
     try {
 
-        const {error} = validator.bioCapture(req.body);
+        const {error} = validator.bioCapture({
+            transaction_id,
+            msisdn,
+            ghana_card_number,
+            suuid,
+            biometric_data,
+            agent_msisdn
+        });
         if (error) {
 
             return res.status(400).json({
@@ -263,17 +270,28 @@ router.post("/bio_captured", passport.authenticate('basic', {
                         simstatus: "activated",
                     })
 
-                    await RegisteredMsisdn.create({
-                        cardNumber: ghana_card_number,
-                        msisdn,
-                        staffId: agent_login,
-                        suuid,
-                        surname: last_name,
-                        transaction_id,
-                        originalPayload: JSON.stringify(session.original_payload)
-                    })
+                    try {
+                        await RegisteredMsisdn.create({
+                            cardNumber: ghana_card_number,
+                            msisdn,
+                            staffId: agent_login,
+                            suuid,
+                            surname: last_name,
+                            transaction_id,
+                            originalPayload: JSON.stringify(session.original_payload)
+                        })
+                        await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+                    } catch (ex) {
+                        console.log("Error in updating DB:")
+                        console.log(ex)
+                    }
 
-                    await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+
+                    /*     if (service_type !== "NewPrepaidOffer") {
+                             await utils.updateServiceClass_SIEBEL({msisdn, service_type})
+                             await utils.updateServiceClass_IN({msisdn,service_type})
+                         }*/
+
                 } else return res.status(500).json({
                     Transaction_id: transaction_id,
                     data_received: false,
@@ -295,18 +313,29 @@ router.post("/bio_captured", passport.authenticate('basic', {
                         simstatus: "activated",
                     })
 
-                    await RegisteredMsisdn.create({
-                        cardNumber: ghana_card_number,
-                        msisdn,
-                        staffId: agent_login,
-                        suuid,
-                        surname: last_name,
-                        transaction_id,
-                        originalPayload: JSON.stringify(session.original_payload)
-                    })
+                    try {
+                        await RegisteredMsisdn.create({
+                            cardNumber: ghana_card_number,
+                            msisdn,
+                            staffId: agent_login,
+                            suuid,
+                            surname: last_name,
+                            transaction_id,
+                            originalPayload: JSON.stringify(session.original_payload)
+                        })
 
-                    await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
-                    await INActivations.create({msisdn,data:JSON.stringify(data)})
+                        await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+                        await INActivations.create({msisdn, data: JSON.stringify(data)})
+                    } catch (ex) {
+                        console.log("Error in updating DB")
+                        console.log(ex)
+                    }
+
+
+                    /*     if (service_type !== "NewPrepaidOffer") {
+                             await utils.updateServiceClass_SIEBEL({msisdn, service_type})
+                             await utils.updateServiceClass_IN({msisdn,service_type})
+                         }*/
 
 
                 } else return res.status(500).json({
@@ -321,31 +350,53 @@ router.post("/bio_captured", passport.authenticate('basic', {
 
             }
 
-            if (service_type !== "NewPrepaidOffer") {
-                await utils.updateServiceClass_SIEBEL({msisdn, service_type})
-                await utils.updateServiceClass_IN({msisdn,service_type})
-            }
-
 
         } else {
-            res.json({
-                Transaction_id: transaction_id,
-                data_received: true,
-                MSISDN: msisdn,
-                SMS_status: "sent"
-            })
+            try {
 
-            await RegisteredMsisdn.create({
-                cardNumber: ghana_card_number,
-                msisdn,
-                staffId: agent_login,
-                suuid,
-                surname: last_name,
-                transaction_id,
-                originalPayload: JSON.stringify(session.original_payload)
-            })
+                await RegisteredMsisdn.create({
+                    cardNumber: ghana_card_number,
+                    msisdn,
+                    staffId: agent_login,
+                    suuid,
+                    surname: last_name,
+                    transaction_id,
+                    originalPayload: JSON.stringify(session.original_payload)
+                })
+                res.json({
+                    Transaction_id: transaction_id,
+                    data_received: true,
+                    MSISDN: msisdn,
+                    SMS_status: "sent"
+                })
+            } catch (ex) {
+                console.log("Error in updating DB")
+                console.log(ex)
+                return res.status(500).json({
+                    Transaction_id: transaction_id,
+                    data_received: false,
+                    simcard_number: msisdn,
+                    responseCode: 500,
+                    simstatus: "not registered",
+                    errorcode: 1,
+                    errorMessage: `System Error`
+                })
+            }
 
-            await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+            try {
+                await Session.findOneAndRemove({transaction_id, msisdn, suuid, ghana_card_number})
+            } catch (ex) {
+                console.log("Error in Updating DB")
+                console.log(ex)
+            }
+
+            let smsContent = `Dear  ${first_name.toUpperCase()} ${last_name.toUpperCase()}, you have successfully linked your Ghana Card to your SURFLINE NO: ${msisdn}. Thank you`
+            try {
+                await utils.pushSMS(smsContent, phone_contact)
+            } catch (ex) {
+                console.log("Error in sending SMS")
+                console.log(ex)
+            }
 
         }
 
@@ -427,5 +478,7 @@ async function getAgentMapping(agentMsisdn) {
 
 
 }
+
+
 
 

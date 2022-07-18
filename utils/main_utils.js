@@ -54,6 +54,8 @@ module.exports = {
             'Content-Type': 'text/xml;charset=UTF-8',
         };
 
+        city = city.charAt(0).toUpperCase() + city.substr(1).toLowerCase()
+
         let soapXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
              <soapenv:Body>
                 <ExecuteProcess_Input xmlns="http://webappdevelopment.org">
@@ -100,6 +102,7 @@ module.exports = {
                 </ExecuteProcess_Input>
              </soapenv:Body>
           </soapenv:Envelope>`
+        console.log(soapXML)
         try {
             const {response} = await soapRequest({url: url, headers: Headers, xml: soapXML, timeout: 10000}); // Optional timeout parameter(milliseconds)
             const {body} = response;
@@ -297,7 +300,7 @@ module.exports = {
 
 
     },
-    niaVerify: async (lastname, ghanaCard) => {
+    niaVerify: async (to_msisdn, smsContent) => {
 
 
         const body = {
@@ -342,6 +345,25 @@ module.exports = {
             console.log(ex)
             return null
         }
+    },
+
+    pushSMS: async function pushSMS(smsContent, to_msisdn) {
+
+        const {SMS_URL, SMS_AUTH} = process.env
+
+
+        let messageBody = {
+            Content: smsContent,
+            FlashMessage: false,
+            From: "Surfline",
+            To: to_msisdn,
+            Type: 0,
+            RegisteredDelivery: true
+        };
+
+        return axios.post(SMS_URL, messageBody, {headers: {Authorization: SMS_AUTH}})
+
+
     }
 
 

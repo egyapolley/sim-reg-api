@@ -102,10 +102,10 @@ module.exports = {
                 .required(),
             ghana_card_number: Joi.string()
                 .required(),
-            location: Joi.object({
-                lat: Joi.string(),
-                lng: Joi.string(),
-            })
+            // location: Joi.object({
+            //     lat: Joi.string(),
+            //     lng: Joi.string(),
+            // })
 
         });
 

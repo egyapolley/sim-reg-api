@@ -1,10 +1,14 @@
 require("dotenv").config();
+const oracleDb = require("oracledb")
+
+
 module.exports = {
 
     dbVerify: {
         user: process.env.ORADB_USER1,
         password: process.env.ORADB_PASS1,
-        connectString: process.env.ORADB_CONNECT1
+        connectString: process.env.ORADB_CONNECT1,
+        privilege:oracleDb.SYSDBA
     },
     dbUpdate: {
         user: process.env.ORADB_User2,

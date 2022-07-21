@@ -134,10 +134,14 @@ const RegisteredMsisdn = sequelize.define("registeredMsisdn", {
         type: Sequelize.STRING,
         allowNull:false
     },
+    customer_type: {
+        type: Sequelize.STRING,
+        allowNull:true
+    },
     originalPayload: {
         type: Sequelize.STRING,
         allowNull:false,
-    }
+    },
 
 });
 const INActivations = sequelize.define("inActivations", {

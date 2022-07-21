@@ -7,8 +7,7 @@ module.exports = {
     dbVerify: {
         user: process.env.ORADB_USER1,
         password: process.env.ORADB_PASS1,
-        connectString: process.env.ORADB_CONNECT1,
-        privilege:oracleDb.SYSDBA
+        connectString: process.env.ORADB_CONNECT1
     },
     dbUpdate: {
         user: process.env.ORADB_User2,

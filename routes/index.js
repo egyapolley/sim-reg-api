@@ -276,6 +276,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                             msisdn,
                             staffId: agent_login,
                             suuid,
+                            customer_type:"NEW",
                             surname: last_name,
                             transaction_id,
                             originalPayload: JSON.stringify(session.original_payload)
@@ -319,6 +320,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                             msisdn,
                             staffId: agent_login,
                             suuid,
+                            customer_type:"NEW",
                             surname: last_name,
                             transaction_id,
                             originalPayload: JSON.stringify(session.original_payload)
@@ -360,6 +362,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                     staffId: agent_login,
                     suuid,
                     surname: last_name,
+                    customer_type:"EXISTING",
                     transaction_id,
                     originalPayload: JSON.stringify(session.original_payload)
                 })

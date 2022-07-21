@@ -300,7 +300,7 @@ module.exports = {
 
 
     },
-    niaVerify: async (to_msisdn, smsContent) => {
+    niaVerify: async (lastname, ghanaCard) => {
 
 
         const body = {

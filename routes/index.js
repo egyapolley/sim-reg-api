@@ -372,6 +372,11 @@ router.post("/bio_captured", passport.authenticate('basic', {
                     MSISDN: msisdn,
                     SMS_status: "sent"
                 })
+                try {
+                    await utils.rewardCustomer(msisdn)
+                } catch (ex) {
+                    console.log("Error in rewarding on IN ",ex)
+                }
             } catch (ex) {
                 console.log("Error in updating DB")
                 console.log(ex)

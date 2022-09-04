@@ -364,7 +364,38 @@ module.exports = {
         return axios.post(SMS_URL, messageBody, {headers: {Authorization: SMS_AUTH}})
 
 
-    }
+    },
+    rewardCustomer: async (msisdn) => {
+        const url = process.env.IN_OSD
+        const sampleHeaders = {
+            'User-Agent': 'NodeApp',
+            'Content-Type': 'text/xml;charset=UTF-8',
+            'SOAPAction': 'http://SCLINSMSVM01P/wsdls/Surfline/VoucherRecharge_USSD/VoucherRecharge_USSD',
+            'Authorization': `${process.env.OSD_AUTH}`
+        };
+
+
+        let xmlRequest = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:sim="http://SCLINSMSVM01P/wsdls/Surfline/SIM_REG_1GB_REWARD.wsdl">
+   <soapenv:Header/>
+   <soapenv:Body>
+      <sim:SIM_REG_1GB_REWARDRequest>
+         <CC_Calling_Party_Id>${msisdn}</CC_Calling_Party_Id>
+      </sim:SIM_REG_1GB_REWARDRequest>
+   </soapenv:Body>
+</soapenv:Envelope>`;
+        try {
+            const {response} = await soapRequest({url: url, headers: sampleHeaders, xml: xmlRequest, timeout: 10000}); // Optional timeout parameter(milliseconds)
+            const {body} = response;
+            let jsonObj = parser.parse(body, options);
+            let result = jsonObj.Envelope.Body;
+            return (result.SIM_REG_1GB_REWARDResult === "")
+        } catch (ex) {
+            console.log(ex)
+            return false
+        }
+
+
+    },
 
 
 }

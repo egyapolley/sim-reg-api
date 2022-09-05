@@ -446,6 +446,29 @@ router.get("/service_types", passport.authenticate('basic', {
 
 })
 
+router.get("/msisdn_reg", passport.authenticate('basic', {
+    session: false
+}), async (req, res) => {
+    try {
+
+        const {msisdn} = req.query
+
+        const registered = await RegisteredMsisdn.findOne({where: {msisdn}})
+        if (registered){
+            const {cardNumber, suuid, msisdn, surname,staffId:agentId} = registered
+            return res.json({status: 0, reason: "success", data:{cardNumber, suuid, msisdn, surname,agentId}})
+        }
+        res.json({status: 1, reason: "not registered", data:null})
+
+    } catch (ex) {
+        console.log(ex)
+        res.json({status: 1, reason: "error"})
+
+    }
+
+
+})
+
 router.post("/user", async (req, res) => {
     try {
         let {username, password, channel} = req.body;

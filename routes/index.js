@@ -276,7 +276,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                             msisdn,
                             staffId: agent_login,
                             suuid,
-                            customer_type:"NEW",
+                            customer_type: "NEW",
                             surname: last_name,
                             transaction_id,
                             originalPayload: JSON.stringify(session.original_payload)
@@ -320,7 +320,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                             msisdn,
                             staffId: agent_login,
                             suuid,
-                            customer_type:"NEW",
+                            customer_type: "NEW",
                             surname: last_name,
                             transaction_id,
                             originalPayload: JSON.stringify(session.original_payload)
@@ -362,7 +362,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                     staffId: agent_login,
                     suuid,
                     surname: last_name,
-                    customer_type:"EXISTING",
+                    customer_type: "EXISTING",
                     transaction_id,
                     originalPayload: JSON.stringify(session.original_payload)
                 })
@@ -375,7 +375,7 @@ router.post("/bio_captured", passport.authenticate('basic', {
                 try {
                     await utils.rewardCustomer(msisdn)
                 } catch (ex) {
-                    console.log("Error in rewarding on IN ",ex)
+                    console.log("Error in rewarding on IN ", ex)
                 }
             } catch (ex) {
                 console.log("Error in updating DB")
@@ -454,15 +454,66 @@ router.get("/msisdn_reg", passport.authenticate('basic', {
         const {msisdn} = req.query
 
         const registered = await RegisteredMsisdn.findOne({where: {msisdn}})
-        if (registered){
-            const {cardNumber, suuid, msisdn, surname,staffId:agentId} = registered
-            return res.json({status: 0, reason: "success", data:{cardNumber, suuid, msisdn, surname,agentId}})
+        if (registered) {
+            const {cardNumber, suuid, msisdn, surname, staffId: agentId} = registered
+            return res.json({status: 0, reason: "success", data: {cardNumber, suuid, msisdn, surname, agentId}})
         }
-        res.json({status: 1, reason: "not registered", data:null})
+        res.json({status: 1, reason: "not registered", data: null})
 
     } catch (ex) {
         console.log(ex)
         res.json({status: 1, reason: "error"})
+
+    }
+
+
+})
+
+router.get("/card", passport.authenticate('basic', {
+    session: false
+}), async (req, res) => {
+    try {
+
+        let {last_name, id} = req.query
+        last_name = last_name.toUpperCase()
+        const ghanaID = await GhanaIDs.findOne({where: {pinNumber: id, surname: last_name}})
+        if (ghanaID) {
+            return res.json({
+                status: 0,
+                reason: "success",
+                data: ghanaID.niaData
+
+            })
+        } else {
+            const niaResponse = await utils.niaVerify(last_name, id)
+            if (niaResponse) {
+                const {suuid, data} = niaResponse
+                await GhanaIDs.create({
+                    surname: last_name,
+                    pinNumber: ghana_card_number,
+                    suuid,
+                    niaData: JSON.stringify(data)
+                })
+
+                return res.json({
+                    status: 0,
+                    reason: "success",
+                    data,
+                })
+            }
+
+            res.json({
+                status: 1,
+                reason: "error",
+                data: niaResponse
+            })
+
+        }
+
+
+    } catch (ex) {
+        console.log(ex)
+
 
     }
 

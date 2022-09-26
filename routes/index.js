@@ -481,7 +481,7 @@ router.get("/card", passport.authenticate('basic', {
             return res.json({
                 status: 0,
                 reason: "success",
-                data: ghanaID.niaData
+                data: JSON.parse(ghanaID.niaData)
 
             })
         } else {
@@ -490,7 +490,7 @@ router.get("/card", passport.authenticate('basic', {
                 const {suuid, data} = niaResponse
                 await GhanaIDs.create({
                     surname: last_name,
-                    pinNumber: ghana_card_number,
+                    pinNumber: id,
                     suuid,
                     niaData: JSON.stringify(data)
                 })

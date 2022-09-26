@@ -176,7 +176,7 @@ module.exports = {
             console.log(JSON.stringify(rows), JSON.stringify(rows[0]))
             //return rows.length > 0 && (rows[0].CELLPHONENUMBER === contact) && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
             //return rows.length > 0  && (moment(dob, "YYYY-MM-DD").isSame(moment((rows[0].DOB).toString())))
-            return rows.length > 0  && (moment(new Date(dob)).isSame(moment((rows[0].DOB))))
+            return rows.length > 0 && (moment(new Date(dob)).isSame(moment((rows[0].DOB))))
 
         } catch (ex) {
             console.log(ex)
@@ -333,9 +333,6 @@ module.exports = {
 
                     const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
                     const {success, code, data} = dataResponse
-                    console.log("#".repeat(50))
-                    console.log(success, code, data)
-                    console.log("#".repeat(50))
                     if (success && code === '00' && data.shortGuid) {
                         return {suuid: data.shortGuid, data}
                     }
@@ -345,6 +342,11 @@ module.exports = {
             return null;
         } catch (ex) {
             console.log(ex)
+            if (ex.response && ex.response.data) {
+                console.log("#".repeat(50))
+                console.log(JSON.stringify(ex.response.data))
+                console.log("#".repeat(50))
+            }
             return null
         }
     },

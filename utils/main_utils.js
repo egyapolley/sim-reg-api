@@ -332,9 +332,10 @@ module.exports = {
                     }
 
                     const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
-                    console.log(JSON.stringify(dataResponse))
-
                     const {success, code, data} = dataResponse
+                    console.log("#".repeat(50))
+                    console.log(success, code, data)
+                    console.log("#".repeat(50))
                     if (success && code === '00' && data.shortGuid) {
                         return {suuid: data.shortGuid, data}
                     }

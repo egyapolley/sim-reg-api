@@ -127,7 +127,13 @@ router.post("/register", passport.authenticate('basic', {
                 original_payload,
                 nia_response: JSON.parse(niaData)
             })
-            await session.save()
+
+            try {
+                await session.save()
+            } catch (ex) {
+                console.log(ex)
+                if (ex.message) console.log(ex.message)
+            }
             return res.json({
                 Transaction_id: transaction_id,
                 is_valid: true,

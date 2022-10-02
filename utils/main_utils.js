@@ -4,6 +4,15 @@ const {XMLParser} = require('fast-xml-parser');
 const {dbUpdate, dbVerify} = require("./oracledbConfig")
 const oracledb = require("oracledb")
 
+const UncheckedCards = require("../models/uncheckedCards");
+
+
+const https = require("https")
+const agent = new https.Agent({
+    rejectUnauthorized:false
+})
+
+
 const axios = require("axios")
 
 
@@ -314,12 +323,23 @@ module.exports = {
         const dataURL = `${process.env.NIA_DATA_URL}`
 
         try {
-            const {data: authResponse} = await axios.post(authURL, body)
-            console.log(JSON.stringify(authResponse))
 
-            const {success, code} = authResponse
+            let authResult = null
+
+            try {
+                const {data: authResponse} = await axios.post(authURL, body,{httpsAgent:agent})
+                authResult = authResponse
+            } catch (authEx) {
+                console.log(authEx)
+                let suuid = getSuid()
+                let unchecked = new UncheckedCards({suuid, ghanaCard, lastname})
+                await unchecked.save()
+                return {suuid, data: {ghanaCard, lastname, suuid}}
+            }
+
+            const {success, code} = authResult
             if (success && code === '00') {
-                const {accessToken} = authResponse.data;
+                const {accessToken} = authResult.data
                 if (accessToken) {
 
                     const headers = {
@@ -331,7 +351,7 @@ module.exports = {
                         surname: lastname
                     }
 
-                    const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers})
+                    const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers, httpsAgent:agent})
                     const {success, code, data} = dataResponse
                     if (success && code === '00' && data.shortGuid) {
                         return {suuid: data.shortGuid, data}
@@ -418,5 +438,22 @@ function getRegion(region) {
     else if (region.includes("upper east")) return 'Upper East'
     else if (region.includes("upper west")) return 'Upper West'
     else return 'Gt. Accra'
+}
+
+function getSuid() {
+
+    let s = "01234566789ABCDEFGHIJKLMNPQRSUVWXYZ"
+
+    let result = ""
+
+    for (let i = 0; i < 9; i++) {
+
+        let c = s.charAt(Math.floor(Math.random() * s.length))
+        result += c
+
+    }
+    return result
 
 }
+
+

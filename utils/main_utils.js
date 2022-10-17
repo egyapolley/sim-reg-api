@@ -331,10 +331,11 @@ module.exports = {
                 authResult = authResponse
             } catch (authEx) {
                 console.log(authEx)
-                let suuid = getSuid()
-                let unchecked = new UncheckedCards({suuid, ghanaCard, lastname})
-                await unchecked.save()
-                return {suuid, data: {ghanaCard, lastname, suuid}}
+                // let suuid = getSuid()
+                // let unchecked = new UncheckedCards({suuid, ghanaCard, lastname})
+                // await unchecked.save()
+                // return {suuid, data: {ghanaCard, lastname, suuid}}
+                return null
             }
 
             const {success, code} = authResult

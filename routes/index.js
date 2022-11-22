@@ -152,7 +152,11 @@ router.post("/register", passport.authenticate('basic', {
                     ghana_card_number,
                     original_payload
                 })
-                await session.save()
+                try {
+                    await session.save()
+                } catch (ex) {
+                    console.log(ex)
+                }
                 await GhanaIDs.create({
                     surname: last_name,
                     pinNumber: ghana_card_number,

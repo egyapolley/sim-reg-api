@@ -9,7 +9,7 @@ const UncheckedCards = require("../models/uncheckedCards");
 
 const https = require("https")
 const agent = new https.Agent({
-    rejectUnauthorized:false
+    rejectUnauthorized: false
 })
 
 
@@ -64,6 +64,8 @@ module.exports = {
         };
 
         city = city.charAt(0).toUpperCase() + city.substr(1).toLowerCase()
+        city = ["Accra", "Tema"].includes(city) ? city : "Accra"
+
 
         let soapXML = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
              <soapenv:Body>
@@ -327,7 +329,7 @@ module.exports = {
             let authResult = null
 
             try {
-                const {data: authResponse} = await axios.post(authURL, body,{httpsAgent:agent})
+                const {data: authResponse} = await axios.post(authURL, body, {httpsAgent: agent})
                 authResult = authResponse
             } catch (authEx) {
                 console.log(authEx)
@@ -352,7 +354,7 @@ module.exports = {
                         surname: lastname
                     }
 
-                    const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers, httpsAgent:agent})
+                    const {data: dataResponse} = await axios.post(dataURL, dataBody, {headers, httpsAgent: agent})
                     const {success, code, data} = dataResponse
                     if (success && code === '00' && data.shortGuid) {
                         return {suuid: data.shortGuid, data}
@@ -420,6 +422,33 @@ module.exports = {
         }
 
 
+    },
+
+
+    checkSIMCount: async (ghanaCard) => {
+
+        const authURL = `${process.env.CP_LOGIN_URL}Username=${process.env.CP_USERNAME}&Password=${process.env.CP_PASSWORD}`
+        try {
+            const {data: authResponse} = await axios.get(authURL, {httpsAgent: agent})
+            console.log(JSON.stringify(authResponse))
+            const {error, token} = authResponse
+            if (error === 0 && token) {
+                const dataURL = `${process.env.CP_DATA_URL}token=${token}&subscriber_personal_id=${ghanaCard}`
+                const {data: simResponse} = axios.post(dataURL, null, {httpsAgent: agent})
+                console.log(JSON.stringify(simResponse))
+                const {error: errorData, data} = simResponse;
+                if (errorData === 0 && data) {
+                    if (data[0] && data[0].count <= 15) return true
+
+                }
+
+
+            }
+
+            return false
+        } catch (ex) {
+            return false
+        }
     },
 
 
